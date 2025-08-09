@@ -9,6 +9,16 @@ public class Player {
     private String id;
     private String name;
     private double marketValue;
+    private String club;
+
+    public String getClub() {
+        return club;
+    }
+
+    public void setClub(String club) {
+        this.club = club;
+    }
+
 
     public Player() {
     }
@@ -41,4 +51,5 @@ public class Player {
     public void setMarketValue(double marketValue) {
         this.marketValue = marketValue;
     }
+
 }
