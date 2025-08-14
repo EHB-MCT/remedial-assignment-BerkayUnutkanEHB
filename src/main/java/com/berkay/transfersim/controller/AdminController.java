@@ -4,73 +4,119 @@ import com.berkay.transfersim.model.Club;
 import com.berkay.transfersim.model.Player;
 import com.berkay.transfersim.repository.ClubRepository;
 import com.berkay.transfersim.repository.PlayerRepository;
-import com.berkay.transfersim.repository.TransferRepository;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin")
 @CrossOrigin
 public class AdminController {
 
-    private final ClubRepository clubs;
-    private final PlayerRepository players;
-    private final TransferRepository transfers;
+    private final PlayerRepository playerRepository;
+    private final ClubRepository clubRepository;
 
-    public AdminController(ClubRepository clubs, PlayerRepository players, TransferRepository transfers) {
-        this.clubs = clubs;
-        this.players = players;
-        this.transfers = transfers;
+    public AdminController(PlayerRepository playerRepository, ClubRepository clubRepository) {
+        this.playerRepository = playerRepository;
+        this.clubRepository = clubRepository;
     }
 
-    /** Alle data wissen (pas op!) */
-    @DeleteMapping("/wipe")
-    public String wipe() {
-        transfers.deleteAll();
-        players.deleteAll();
-        clubs.deleteAll();
-        return "All collections cleared.";
+    // Helpers
+    private static double clamp(double v, double min, double max) {
+        return Math.max(min, Math.min(max, v));
+    }
+    private static double roundToMillions(double v) {
+        return Math.round(v / 1_000_000d) * 1_000_000d;
     }
 
-    /** Basis seed toevoegen (2 clubs + 2 spelers) */
-    @PostMapping("/seed")
-    public String seed() {
-        if (clubs.count() == 0) {
-            var fener = new Club();
-            fener.setName("Fenerbahce");
-            fener.setLeague("Süper Lig");
-            fener.setBudget(80_000_000);
-            fener.setTicketRevenueRate(120_000);
-            fener.setSponsorRevenueRate(250_000);
+    // ---------- PLAYERS ----------
 
-            var gala = new Club();
-            gala.setName("Galatasaray");
-            gala.setLeague("Süper Lig");
-            gala.setBudget(70_000_000);
-            gala.setTicketRevenueRate(110_000);
-            gala.setSponsorRevenueRate(230_000);
-
-            clubs.save(fener);
-            clubs.save(gala);
+    /** Schaal ALLE spelerswaardes met factor; optioneel clamp + afronden op miljoenen. */
+    @PostMapping("/players/scale")
+    public String scalePlayers(
+            @RequestParam(name = "factor", defaultValue = "1.0") double factor,
+            @RequestParam(name = "min", defaultValue = "500000") double min,
+            @RequestParam(name = "max", defaultValue = "250000000") double max,
+            @RequestParam(name = "roundMillions", defaultValue = "true") boolean roundMillions
+    ) {
+        List<Player> players = playerRepository.findAll();
+        for (Player p : players) {
+            double nv = p.getMarketValue() * factor;
+            nv = clamp(nv, min, max);
+            if (roundMillions) nv = roundToMillions(nv);
+            p.setMarketValue(nv);
         }
+        playerRepository.saveAll(players);
+        return "Scaled " + players.size() + " players by factor=" + factor + " (clamp [" + min + "," + max + "])"
+                + (roundMillions ? " with million rounding" : "");
+    }
 
-        if (players.count() == 0) {
-            var p1 = new Player();
-            p1.setName("Star FW");
-            p1.setAge(26);
-            p1.setPosition("FW");
-            p1.setMarketValue(25_000_000);
-            p1.setClub("Fenerbahce");
-
-            var p2 = new Player();
-            p2.setName("Playmaker MF");
-            p2.setAge(27);
-            p2.setPosition("MF");
-            p2.setMarketValue(18_000_000);
-            p2.setClub("Galatasaray");
-
-            players.save(p1);
-            players.save(p2);
+    /** Normaliseer ALLE spelerswaardes naar [min,max]; optioneel afronden op miljoenen. */
+    @PostMapping("/players/normalize")
+    public String normalizePlayers(
+            @RequestParam(name = "min", defaultValue = "500000") double min,
+            @RequestParam(name = "max", defaultValue = "250000000") double max,
+            @RequestParam(name = "roundMillions", defaultValue = "true") boolean roundMillions
+    ) {
+        List<Player> players = playerRepository.findAll();
+        for (Player p : players) {
+            double nv = clamp(p.getMarketValue(), min, max);
+            if (roundMillions) nv = roundToMillions(nv);
+            p.setMarketValue(nv);
         }
-        return "Seed done.";
+        playerRepository.saveAll(players);
+        return "Normalized " + players.size() + " players to [" + min + "," + max + "]"
+                + (roundMillions ? " with million rounding" : "");
+    }
+
+    // ---------- CLUBS ----------
+
+    /** Schaal ALLE clubbudgetten met factor; optioneel clamp + afronden op miljoenen. */
+    @PostMapping("/clubs/scale")
+    public String scaleClubs(
+            @RequestParam(name = "factor", defaultValue = "1.0") double factor,
+            @RequestParam(name = "min", required = false) Double min,
+            @RequestParam(name = "max", required = false) Double max,
+            @RequestParam(name = "roundMillions", defaultValue = "true") boolean roundMillions
+    ) {
+        List<Club> clubs = clubRepository.findAll();
+        for (Club c : clubs) {
+            double nb = c.getBudget() * factor;
+            if (min != null || max != null) {
+                double lo = (min == null ? Double.NEGATIVE_INFINITY : min);
+                double hi = (max == null ? Double.POSITIVE_INFINITY : max);
+                nb = clamp(nb, lo, hi);
+            }
+            if (roundMillions) nb = roundToMillions(nb);
+            c.setBudget(nb);
+        }
+        clubRepository.saveAll(clubs);
+        return "Scaled " + clubs.size() + " clubs by factor=" + factor
+                + (min != null || max != null ? " with clamp" : "")
+                + (roundMillions ? " and million rounding" : "");
+    }
+
+    /** Normaliseer ALLE clubbudgetten; optioneel afronden op miljoenen. */
+    @PostMapping("/clubs/normalize")
+    public String normalizeClubs(
+            @RequestParam(name = "min", required = false) Double min,
+            @RequestParam(name = "max", required = false) Double max,
+            @RequestParam(name = "roundMillions", defaultValue = "true") boolean roundMillions
+    ) {
+        List<Club> clubs = clubRepository.findAll();
+        for (Club c : clubs) {
+            double nb = c.getBudget();
+            if (min != null || max != null) {
+                double lo = (min == null ? Double.NEGATIVE_INFINITY : min);
+                double hi = (max == null ? Double.POSITIVE_INFINITY : max);
+                nb = clamp(nb, lo, hi);
+            }
+            if (roundMillions) nb = roundToMillions(nb);
+            c.setBudget(nb);
+        }
+        clubRepository.saveAll(clubs);
+        return "Normalized " + clubs.size() + " clubs"
+                + (min != null || max != null ? " to range [" + (min==null?"-inf":min) + "," + (max==null?"+inf":max) + "]" : "")
+                + (roundMillions ? " with million rounding" : "");
     }
 }
