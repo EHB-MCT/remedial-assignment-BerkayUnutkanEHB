@@ -4,17 +4,19 @@ import com.berkay.transfersim.service.SimulationService;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/sim")
+@RequestMapping("/simulation")
 @CrossOrigin
 public class SimulationController {
-    private final SimulationService sim;
 
-    public SimulationController(SimulationService sim) {
-        this.sim = sim;
+    private final SimulationService simulationService;
+
+    public SimulationController(SimulationService simulationService) {
+        this.simulationService = simulationService;
     }
 
+    /** Handmatig een tick draaien: POST /simulation/tick */
     @PostMapping("/tick")
-    public String tick() {
-        return sim.tick();
+    public String runTick() {
+        return simulationService.tick();
     }
 }

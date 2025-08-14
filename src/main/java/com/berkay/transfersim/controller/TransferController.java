@@ -10,6 +10,9 @@ import com.berkay.transfersim.repository.TransferRepository;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/transfers")
 @CrossOrigin
@@ -27,6 +30,7 @@ public class TransferController {
         this.transferRepository = transferRepository;
     }
 
+    /** Manual transfer via API (you already had this) */
     @PostMapping
     public Player transfer(@RequestBody @Valid TransferRequest request) {
         Player player = playerRepository.findById(request.getPlayerId())
@@ -64,8 +68,15 @@ public class TransferController {
         t.setFromClub(fromClubName);
         t.setToClub(toClubName);
         t.setFee(fee);
+        t.setCompletedAt(Instant.now());
         transferRepository.save(t);
 
         return player;
+    }
+
+    /** NEW: list all transfers (for grading / inspection) */
+    @GetMapping
+    public List<Transfer> all() {
+        return transferRepository.findAll();
     }
 }

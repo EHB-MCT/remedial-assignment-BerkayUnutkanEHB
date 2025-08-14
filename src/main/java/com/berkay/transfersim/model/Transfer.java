@@ -11,18 +11,24 @@ public class Transfer {
     private String id;
 
     private String playerId;
+    private String playerName;
+
     private String fromClub;
     private String toClub;
-    private double fee;
-    private double newWage; // optioneel voor later
-    private Instant completedAt = Instant.now();
 
-    // getters/setters
+    private double fee;          // transfersom
+    private Instant completedAt; // tijdstip
+
+    public Transfer() {}
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
     public String getPlayerId() { return playerId; }
     public void setPlayerId(String playerId) { this.playerId = playerId; }
+
+    public String getPlayerName() { return playerName; }
+    public void setPlayerName(String playerName) { this.playerName = playerName; }
 
     public String getFromClub() { return fromClub; }
     public void setFromClub(String fromClub) { this.fromClub = fromClub; }
@@ -32,9 +38,6 @@ public class Transfer {
 
     public double getFee() { return fee; }
     public void setFee(double fee) { this.fee = fee; }
-
-    public double getNewWage() { return newWage; }
-    public void setNewWage(double newWage) { this.newWage = newWage; }
 
     public Instant getCompletedAt() { return completedAt; }
     public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
