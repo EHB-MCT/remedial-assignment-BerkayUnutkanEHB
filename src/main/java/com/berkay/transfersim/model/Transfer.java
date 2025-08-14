@@ -12,14 +12,10 @@ public class Transfer {
 
     private String playerId;
     private String playerName;
-
     private String fromClub;
     private String toClub;
-
-    private double fee;          // transfersom
-    private Instant completedAt; // tijdstip
-
-    public Transfer() {}
+    private double fee;
+    private Instant completedAt;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }

@@ -11,7 +11,11 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/transfers")
@@ -30,7 +34,7 @@ public class TransferController {
         this.transferRepository = transferRepository;
     }
 
-    /** Manual transfer via API (you already had this) */
+    /** Manual transfer (jouw bestaande endpoint) */
     @PostMapping
     public Player transfer(@RequestBody @Valid TransferRequest request) {
         Player player = playerRepository.findById(request.getPlayerId())
@@ -56,7 +60,7 @@ public class TransferController {
         clubRepository.save(toClub);
         clubRepository.save(fromClub);
 
-        // Speler updaten
+        // Speler updaten (lichte waarde-aanpassing)
         player.setClub(toClubName);
         double nieuweWaarde = Math.max(1_000_000, (player.getMarketValue() * 0.6) + fee * 0.4);
         player.setMarketValue(nieuweWaarde);
@@ -65,6 +69,7 @@ public class TransferController {
         // Logboek
         Transfer t = new Transfer();
         t.setPlayerId(player.getId());
+        t.setPlayerName(player.getName());
         t.setFromClub(fromClubName);
         t.setToClub(toClubName);
         t.setFee(fee);
@@ -74,9 +79,51 @@ public class TransferController {
         return player;
     }
 
-    /** NEW: list all transfers (for grading / inspection) */
+    /** Alle transfers, nieuwste eerst */
     @GetMapping
     public List<Transfer> all() {
-        return transferRepository.findAll();
+        List<Transfer> list = transferRepository.findAllByOrderByCompletedAtDesc();
+        // fallback als completedAt null zou zijn
+        list.sort(Comparator.comparing(Transfer::getCompletedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed());
+        return list;
+    }
+
+    /** Laatste N transfers (default 10) */
+    @GetMapping("/recent")
+    public List<Transfer> recent(@RequestParam(name = "limit", defaultValue = "10") int limit) {
+        List<Transfer> list = transferRepository.findAllByOrderByCompletedAtDesc();
+        return list.stream().limit(Math.max(0, limit)).toList();
+    }
+
+    /** Transfers van/naar een club */
+    @GetMapping("/byClub/{club}")
+    public List<Transfer> byClub(@PathVariable String club) {
+        return transferRepository.findByFromClubOrToClubOrderByCompletedAtDesc(club, club);
+    }
+
+    /** Transfers van een specifieke speler */
+    @GetMapping("/byPlayer/{playerId}")
+    public List<Transfer> byPlayer(@PathVariable String playerId) {
+        return transferRepository.findByPlayerIdOrderByCompletedAtDesc(playerId);
+    }
+
+    /** “Pretty” logformaat als array van strings (lekker leesbaar in Postman) */
+    @GetMapping("/pretty")
+    public List<String> pretty(@RequestParam(name = "limit", defaultValue = "10") int limit) {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                .withZone(ZoneId.systemDefault());
+        return transferRepository.findAllByOrderByCompletedAtDesc()
+                .stream()
+                .limit(Math.max(0, limit))
+                .map(t -> fmt.format(t.getCompletedAt()) + " — "
+                        + (t.getPlayerName() != null ? t.getPlayerName() : t.getPlayerId())
+                        + ": " + t.getFromClub() + " → " + t.getToClub()
+                        + " | €" + formatMoney(t.getFee()))
+                .toList();
+    }
+
+    private String formatMoney(double v) {
+        // Engels locale voor 1,234,567.89
+        return String.format(Locale.US, "%,.2f", v);
     }
 }
