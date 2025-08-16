@@ -57,6 +57,22 @@ app.sim.transfer.mult.min=0.9      # fee ~ marketValue * random(min..max)
 app.sim.transfer.mult.max=1.1
 
 
+### 📡 Belangrijkste API Endpoints
+
+## Simulatie
+POST /api/tick/manual → voer 1 simulatie-tick uit
+GET /api/players → lijst spelers
+GET /api/clubs → lijst clubs
+
+## Transfers
+GET /api/transfers → alle transfers
+GET /api/transfers/recent?limit=10 → laatste transfers
+GET /api/transfers/byClub/{clubName} → transfers per club
+
+## Admin normalisatie
+POST /api/admin/players/normalize?min=1000000&max=200000000
+POST /api/admin/clubs/normalize?min=50000000&max=800000000
+
 ### MongoDB lokaal starten
 ```bash
 mongod --dbpath /pad/naar/jouw/datafolder
